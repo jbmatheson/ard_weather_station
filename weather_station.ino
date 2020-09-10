@@ -3,7 +3,7 @@
 #include <Elegoo_GFX.h>     // Core graphics library
 
 #include <Elegoo_TFTLCD.h>    // Hardware-specific library
-#include <TouchScreen.h>      // Touch Screen Library
+//#include <TouchScreen.h>      // Touch Screen Library
 
 #include <DHT.h>              //DTH Library
 #include <DHT_U.h>            //DTH Library
@@ -40,7 +40,6 @@
 #define WHITE       0xFFFF      /* 255, 255, 255 */
 #define ORANGE      0xFD20      /* 255, 165,   0 */
 #define GREENYELLOW 0xAFE5      /* 173, 255,  47 */
-#define PINK        0xF81F
 
 #define YP A2  // must be an analog pin, use "An" notation!
 #define XM A1  // must be an analog pin, use "An" notation!
@@ -48,17 +47,16 @@
 #define XP 0   // can be a digital pin
 
 //Touch For New ILI9341 TP
-#define TS_MINX 120
-#define TS_MAXX 900
-
-#define TS_MINY 70
-#define TS_MAXY 920
+/*#define TS_MINX 204
+#define TS_MINY 195
+#define TS_MAXX 948
+#define TS_MAXY 910*/
 
 //Screen Declaration
 Elegoo_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 //TouchScreen Area Declaration
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
+//TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);
 
 //Button object declaration
 Elegoo_GFX_Button buttons;
@@ -79,22 +77,18 @@ unsigned long startMillis;           //some global variables available anywhere 
 unsigned long currentMillis;
 const unsigned long period = 5000;   //the value is a number of milliseconds
 
-int tempUnit;                        //Temperature Unit "1" Celsius "2" Farenheit
-int currentPage;                     //Current Page indicator  "1" First Page,  "2" Second Page
-
 void setup(void) {
 
   dht.begin();
 
   Serial.begin(9600);
-  Serial.println(F("WEATHER Station"));
+  Serial.println(F("Weather Station"));
   Serial.print("TFT size is "); Serial.print(tft.width()); Serial.print("x"); Serial.println(tft.height());
 
-  drawInitialScreen();
+  pinMode( YP, OUTPUT );     //.kbv these pins are shared with TFT
+  pinMode( XM, OUTPUT );     //.kbv these pins are shared with TFT
 
-  // TEMP UNIT BOX
-  tempUnit = 1;          // Celsius Default
-  currentPage = 1;       // First Page Default
+  drawScreen();
   drawTemperature();     // Draw Temperature Box
   readTempSensor();      // Read DHT11 Sensor
 
@@ -111,59 +105,25 @@ void loop() {
     startMillis = currentMillis;  //IMPORTANT to save the start time of the current .
   }
 
-  //TouchScreen Definition
-  TSPoint p = ts.getPoint();
+  //TSPoint p = ts.getPoint();
 
-  if (p.z > ts.pressureThreshhold) {
+  /*if (p.z > ts.pressureThreshhold) {
+    pinMode( YP, OUTPUT );     //.kbv these pins are shared with TFT
+    pinMode( XM, OUTPUT );     //.kbv these pins are shared with TFT
+    
     Serial.print("PRESSURE: "); Serial.println(p.z);
     // scale from 0->1023 to tft.width
-    p.x = map(p.x, TS_MINX, TS_MAXX, tft.width(), 0);
-    p.y = (tft.height() - map(p.y, TS_MINY, TS_MAXY, tft.height(), 0));
-    //p.x = map(p.x, TS_MINX, TS_MAXX,0,tft.width());
-    //p.y = map(p.y, TS_MINY, TS_MAXY,0,tft.height());
+    p.x = map(p.x, TS_MAXX, TS_MINX, 0, 320);
+    p.y = map(p.y, TS_MAXY, TS_MINY, 0, 240);
 
     //Print TouchScreen area seleted
     Serial.print("P X"); Serial.print(p.x);
     Serial.print("P Y"); Serial.print(p.y);
-
-    if (p.x >= 145 && p.x <= 245 && p.y >= 110 && p.y <= 220 && currentPage == 1) {
-      Serial.println("Change Temperature Unit Box");  Serial.println(tempUnit);
-      if (tempUnit == 0) {
-        tempUnit = 1;
-        drawTemperature();
-      }
-      else {
-        tempUnit = 0;
-        drawTemperature();
-      }
-      readTempSensor();
-
-    }
-    else if (p.x >= 15 && p.x <= 40 && p.y >= 80 && p.y <= 220 && currentPage == 1) {
-      Serial.println("Next Page Selected");
-      currentPage = 2;
-      drawDetailScreen();
-      readTempSensor();      // Read DHT11 Sensor
-      printTime();
-    }
-    else if (p.x >= 5 && p.x <= 30 && p.y >= 12 && p.y <= 55 && currentPage == 2) {
-      Serial.println("Next Page Selected");
-      tempUnit = 0;          // Celsius Default
-      currentPage = 1;       // First Page Default
-
-      drawInitialScreen();
-      drawTemperature();     // Draw Temperature Box
-      readTempSensor();      // Read DHT11 Sensor
-      printTime();
-    }
-
-  }
-
-  //Serial.print(p.z);
-  //printTime();
+  }*/
+  printTime();
 }
 
-void drawInitialScreen() {
+void drawScreen() {
 
   tft.reset();
   getIdentifierScreen();
@@ -173,10 +133,10 @@ void drawInitialScreen() {
 
   tft.setCursor(30, 10);
   tft.setTextColor(RED);  tft.setTextSize(3);
-  tft.println("WEATHER Station");
+  tft.println("Weather Station");
   tft.drawLine(10, 40, 310, 40, CYAN);
 
-  // TEMP & HUMD Box
+  // TEMP & HUM Box
   tft.drawRect(10, 45, 125, 185, BLUE);
   tft.setCursor(15, 50);
   tft.setTextColor(CYAN);  tft.setTextSize(2);
@@ -189,45 +149,7 @@ void drawInitialScreen() {
   tft.drawLine(145, 130, 310, 130, BLUE);
   tft.drawLine(145, 135, 310, 135, CYAN);
 
-  //BUTTON NEXT PAGE
-  // create buttons
-  //CLASSBUTTON[index].initButton( &tft, BUTON_X_pos, BUTTON_Y_pos, X_WIDTH, Y_LARGE, BORDER_COLOR, TEXT_COLOR, BUTTON_COLOR, TEXT, FONT_SIZE );
-  buttons.initButton( &tft, 275, 210, 70, 30, DARKGREY, WHITE, DARKGREY, "Detail", 1 );
-  buttons.drawButton(true);
-
 }
-
-void drawDetailScreen() {
-
-  tft.reset();
-  getIdentifierScreen();
-  tft.begin(identifier);
-  tft.setRotation(3);
-  tft.fillScreen(BLACK);
-
-  tft.setCursor(50, 10);
-  tft.setTextColor(RED);  tft.setTextSize(3);
-  tft.println("Weather Detail");
-  tft.drawLine(10, 40, 310, 40, CYAN);
-
-  tft.setCursor(100, 50);
-  tft.setTextColor(GREEN); tft.setTextSize(2); tft.println("Temperature");
-
-  // DIVIDERS LINES
-  tft.drawLine(160, 70, 160, 230, CYAN);
-  tft.drawLine(10, 135, 310, 135, CYAN);
-
-  tft.setCursor(40, 140);
-  tft.setTextSize(2); tft.println("Humidity");
-  tft.setCursor(180, 140); tft.println("Heat Index");
-
-  //BUTTON PREVIOUS PAGE
-  // create buttons
-  //CLASSBUTTON[index].initButton( &tft, BUTON_X_pos, BUTTON_Y_pos, X_WIDTH, Y_LARGE, BORDER_COLOR, TEXT_COLOR, BUTTON_COLOR, TEXT, FONT_SIZE );
-  buttons.initButton( &tft, 50, 220, 70, 30, DARKGREY, WHITE, DARKGREY, "Previous", 1 );
-  buttons.drawButton(true);
-}
-
 
 void getIdentifierScreen() {
 
@@ -257,21 +179,13 @@ void drawTemperature() {
 
   tft.fillRect(145, 45, 166, 85, BLUE);
   tft.setCursor(210, 50);
-  tft.setTextColor(RED);  tft.setTextSize(7);
-  Serial.println(tempUnit);
+  tft.setTextColor(RED);  
+  tft.setTextSize(7);
 
-  if (tempUnit == 0) {
-    tft.println("C");
-    tft.setCursor(205, 120);
-    tft.setTextSize(1);
-    tft.println("Celsius");
-  }
-  else {
-    tft.println("F");
-    tft.setCursor(195, 120);
-    tft.setTextSize(1);
-    tft.println("Fahrenheit");
-  }
+  tft.println("F");
+  tft.setCursor(195, 120);
+  tft.setTextSize(1);
+  tft.println("Fahrenheit");
 
   tft.setCursor(190, 50);
   tft.setTextSize(2);
@@ -299,67 +213,28 @@ void readTempSensor() {
   // Compute heat index in Celsius (isFahreheit = false)
   float hic = dht.computeHeatIndex(t, h, false);
 
-  if (currentPage == 1) {
     //Draw blue window for Temp
     tft.drawRect(10, 45, 125, 185, BLUE);
-    tft.setTextColor(CYAN);  tft.setTextSize(3);
+    tft.setTextColor(CYAN);  
+    tft.setTextSize(3);
 
-    if (tempUnit == 0) {
-      //Shows Temperature in Celsius
-      tft.setCursor(15, 70);
-      tft.fillRect(15, 70, 110, 70, BLACK);
-      tft.println(t);
-
-    }
-    else {
-      //Shows Temperature in Farenheit
-      tft.setCursor(15, 70);
-      tft.fillRect(15, 70, 110, 70, BLACK);
-      tft.println(f);
-    }
-
+    //Shows Temperature in Farenheit
+    tft.setCursor(15, 70);
+    tft.fillRect(15, 70, 110, 70, BLACK);
+    tft.println(f);
+      
     tft.setCursor(15, 160);
     tft.fillRect(15, 160, 110, 50, BLACK);
     tft.println(h);
     tft.setCursor(110, 160);
     tft.println("%");
-
-  } else {
-    tft.setTextColor(CYAN);  tft.setTextSize(3);
-    //Shows Temperature in Celsius
-    tft.setCursor(30, 80);
-    tft.fillRect(30, 80, 120, 30, BLACK);
-    tft.println(t);
-    tft.setCursor(130, 80); tft.println("C");
-
-    //Shows Temperature in Farenheit
-    tft.setCursor(190, 80);
-    tft.fillRect(190, 80, 120, 30, BLACK);
-    tft.println(f);
-    tft.setCursor(290, 80); tft.println("F");
-
-    //Shows Humidity
-    tft.setCursor(30, 170);
-    tft.fillRect(30, 170, 120, 30, BLACK);
-    tft.println(h);
-    tft.setCursor(130, 170); tft.println("%");
-
-
-    //Shows Heat Index
-    tft.setTextColor(ORANGE);  tft.setTextSize(2);
-    tft.setCursor(210, 170);
-    tft.fillRect(210, 170, 100, 30, BLACK);
-    tft.println(hif); tft.setCursor(280, 170); tft.println("F");
-
-    tft.setCursor(210, 200);
-    tft.fillRect(210, 200, 100, 30, BLACK);
-    tft.println(hic); tft.setCursor(280, 200); tft.println("C");
-  }
 }
 
 void printTime() {
-  Serial.println(__TIME__);
-  Serial.println(__DATE__);
+  tft.setCursor(145, 145);
+  tft.println(__TIME__);
+  tft.setCursor(145, 180);
+  tft.println(__DATE__);
   delay(3000);
   /*Serial.print(clock.hour, DEC);
     Serial.print(":");
